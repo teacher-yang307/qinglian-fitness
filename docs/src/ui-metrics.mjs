@@ -1,0 +1,8 @@
+// Count progress from recorded task states, never from elapsed calendar days.
+export function programmeMetrics(program,logs={},snapshots={}){
+ const cycles=(program?.cycles||[]).map(cycle=>{let tasks=0,done=0,plannedMinutes=0,actualMinutes=0,missingMinutes=0,activeDays=0,completedDays=0;
+ const days=cycle.days.map(day=>{const assigned=snapshots[day.date]||day.tasks;let completed=0,recorded=0;for(const task of assigned){tasks++;plannedMinutes+=task.minutes;const entry=logs[day.date]?.[task.id];if(entry?.done){done++;completed++;if(entry.minutes===null||entry.minutes===undefined)missingMinutes++;else if(Number.isFinite(entry.minutes)&&entry.minutes>=0){actualMinutes+=entry.minutes;recorded+=entry.minutes;}}}if(assigned.length)activeDays++;if(assigned.length&&completed===assigned.length)completedDays++;return{...day,tasks:assigned,completed,actualMinutes:Math.round(recorded*10)/10};});
+ return{...cycle,days,tasks,done,plannedMinutes,actualMinutes:Math.round(actualMinutes*10)/10,missingMinutes,activeDays,completedDays,pct:tasks?Math.round(done/tasks*100):0};});
+ const total={cycles,tasks:0,done:0,plannedMinutes:0,actualMinutes:0,missingMinutes:0,activeDays:0,completedDays:0};for(const c of cycles)for(const key of ['tasks','done','plannedMinutes','actualMinutes','missingMinutes','activeDays','completedDays'])total[key]+=c[key];total.actualMinutes=Math.round(total.actualMinutes*10)/10;total.pct=total.tasks?Math.round(total.done/total.tasks*100):0;return total;
+}
+export function durationParts(minutes){const whole=Math.max(0,Math.round(Number(minutes)||0));return{hours:Math.floor(whole/60),minutes:whole%60};}
