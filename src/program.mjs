@@ -1,3 +1,4 @@
+import {uniqueId} from './id.mjs';
 // Reusable home programme content. Personal measurements live only in account data.
 export const PROGRAM_VERSION='home-return-2026-11-07-v1';
 export const PROGRAM_SOURCES=[
@@ -44,4 +45,25 @@ export function buildHomeProgram(start){const patterns=[
  {title:'舒适步行',kind:'recovery',tasks:[exercise('walk_easy',20),exercise('relax',5)],note:'这是低强度活动日，给力量训练后的恢复留出空间。'},
  {title:'轻松跑走',kind:'aerobic',tasks:aerobic,note:'保持轻松交谈强度。参考距离不作为任务，记录真实时长即可。'},
  {title:'休息与周期复盘',kind:'rest',tasks:[],note:'今天不安排必须完成的训练。回顾完成情况、疲劳、疼痛和体重趋势，把反馈告诉我。'}
- ];const themes=['找回节奏','稳定动作','巩固习惯','复盘与评估'];return{id:crypto.randomUUID(),version:PROGRAM_VERSION,title:'28 天居家减脂 · 回归训练',start,end:shift(start,27),cycleLength:7,cycleCount:4,source:'conversation_prepared',reviewStatus:'self_training_reference',equipment:'2×4kg 哑铃、瑜伽垫',progression:'未来周期先保持基础量。每 7 天反馈后再调整；不根据单次体重或可用时间自动加量。',sources:PROGRAM_SOURCES,cycles:themes.map((theme,index)=>({index:index+1,start:shift(start,index*7),end:shift(start,index*7+6),theme,provisional:index>0,days:patterns.map((p,d)=>({date:shift(start,index*7+d),title:p.title,kind:p.kind,tasks:structuredClone(p.tasks),note:p.note,effort:p.kind==='strength'?'主观用力约 5–6 / 10，保留余力':p.kind==='aerobic'?'轻松交谈，不追配速':'轻松恢复',meal:HOME_MEALS[d],mealNote:'三餐规律；每餐搭配蛋白质、蔬菜和适量主食，少油烹饪。按饥饱感调整份量，先不设精确热量。'}))}))};}
+ ];const themes=['找回节奏','稳定动作','巩固习惯','复盘与评估'];return{id:uniqueId(),version:PROGRAM_VERSION,title:'28 天居家减脂 · 回归训练',start,end:shift(start,27),cycleLength:7,cycleCount:4,source:'conversation_prepared',reviewStatus:'self_training_reference',equipment:'2×4kg 哑铃、瑜伽垫',progression:'未来周期先保持基础量。每 7 天反馈后再调整；不根据单次体重或可用时间自动加量。',sources:PROGRAM_SOURCES,cycles:themes.map((theme,index)=>({index:index+1,start:shift(start,index*7),end:shift(start,index*7+6),theme,provisional:index>0,days:patterns.map((p,d)=>({date:shift(start,index*7+d),title:p.title,kind:p.kind,tasks:structuredClone(p.tasks),note:p.note,effort:p.kind==='strength'?'主观用力约 5–6 / 10，保留余力':p.kind==='aerobic'?'轻松交谈，不追配速':'轻松恢复',meal:HOME_MEALS[d],mealNote:'三餐规律；每餐搭配蛋白质、蔬菜和适量主食，少油烹饪。按饥饱感调整份量，先不设精确热量。'}))}))};}
+
+export function buildPersonalProgram(start,p){
+ const program=buildHomeProgram(start),base=structuredClone(program.cycles[0].days);
+ const pattern=p.goal==='增肌力量'?[0,4,3,2,0,1,6]:p.goal==='提升体能'?[1,0,2,1,3,1,6]:[0,1,2,3,4,5,6];
+ program.title=`28 天${p.goal} · ${p.equipment==='居家 · 徒手'?'徒手':'基础'}训练`;program.source='profile_rules';program.equipment=p.equipment;
+ program.reason=`根据目标、运动基础、器械、每周可训练日期和单次 ${p.duration} 分钟上限编排。身高体重用于记录趋势，不用于推算运动消耗。`;
+ program.cycles.forEach((cycle,c)=>{let slot=0;cycle.days=pattern.map((index,d)=>{
+  const day=structuredClone(base[index]);day.date=shift(start,c*7+d);const weekday=(new Date(day.date+'T12:00:00Z').getUTCDay()+6)%7;
+  if(!p.days.includes(weekday)){day.tasks=[];day.kind='rest';day.title='休息与恢复';day.note='按你选择的训练日期安排休息，可记录身体感受。';return day;}
+  if(p.days.length<7){const order=p.days.length<=3?(p.goal==='增肌力量'?[0,3,1]:[0,1,3]):pattern.filter(n=>n!==6);const chosen=structuredClone(base[order[slot++%order.length]]);Object.assign(day,chosen,{date:day.date});}
+  if(p.equipment!=='居家 · 2×4kg 哑铃 / 瑜伽垫'){
+   day.tasks=day.tasks.map(t=>t.id==='row_4kg'?{id:'bird_dog',minutes:4,sets:2,reps:'每侧 6 次',restSeconds:45,load:'自重，舒适幅度'}:t).filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i);
+  }
+  if(day.kind==='strength'&&p.duration<30){const keep=new Set(['prep','chair_squat','supported_squat','wall_press','bridge','relax']);day.tasks=day.tasks.filter(t=>keep.has(t.id));for(const t of day.tasks)if(t.sets)t.sets=1;}
+  if(day.kind==='aerobic')for(const t of day.tasks)if(t.id==='run_walk'){if(p.experience==='初学者'){t.id='walk_easy';delete t.reps;day.title='轻松步行';}else t.reps='按任务分钟跑走交替，吃力时改为步行';}
+  const total=day.tasks.reduce((n,t)=>n+t.minutes,0),cap=Math.min(p.duration,p.experience==='初学者'?30:40);
+  if(total>cap){const mins=day.tasks.map(t=>t.id==='prep'||t.id==='relax'?3:t.id==='cool_walk'?2:1),weights=day.tasks.map((t,i)=>Math.max(0,t.minutes-mins[i])),weight=weights.reduce((a,b)=>a+b,0),budget=cap-mins.reduce((a,b)=>a+b,0);const extras=weights.map(w=>Math.floor(budget*w/weight));let left=budget-extras.reduce((a,b)=>a+b,0);for(let i=0;left>0;i=(i+1)%extras.length){if(extras[i]<weights[i]){extras[i]++;left--;}}day.tasks.forEach((t,i)=>t.minutes=mins[i]+extras[i]);}
+  day.note=day.kind==='rest'?'休息并回顾本周期身体感受。':`按自己的状态完成，计划分钟是参考上限；组数和次数可减少，不追求做满。${day.kind==='aerobic'?'保持可交谈的轻松强度。':''}`;
+  day.mealNote='通用均衡餐饮参考，不按个人忌口自动筛选；含过敏原或不适合的食物请替换。';return day;
+ });});return program;
+}
