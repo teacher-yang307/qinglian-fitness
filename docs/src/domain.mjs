@@ -1,5 +1,5 @@
-import {uniqueId} from './id.mjs';
-import {EXERCISES,buildHomeProgram,buildPersonalProgram,PROGRAM_SOURCES} from './program.mjs';
+import {uniqueId} from './id.mjs?v=1ee0d689b19a';
+import {EXERCISES,buildHomeProgram,buildPersonalProgram,PROGRAM_SOURCES} from './program.mjs?v=1ee0d689b19a';
 export const CATALOG_VERSION='reference-2026-11-07';
 export const RULE_VERSION='prototype-2';
 export const DEFAULT_PROFILE={name:'朋友',height:null,weight:null,age:null,goal:'保持健康',experience:'初学者',days:[0,2,5],duration:35,equipment:'居家 · 徒手',limits:'暂无',diet:'无特殊偏好',reminder:'19:00',background:''};

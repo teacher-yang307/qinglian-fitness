@@ -1,5 +1,5 @@
-import {handleApi} from '../worker/api.mjs';
-import {freshState,updateProfile,CATALOG,validDate} from './domain.mjs';
+import {handleApi} from '../worker/api.mjs?v=1ee0d689b19a';
+import {freshState,updateProfile,CATALOG,validDate} from './domain.mjs?v=1ee0d689b19a';
 export const STORAGE_KEY='qinglian-local-v1';
 function empty(){return {schema:1,state:freshState(),history:[],requests:[]};}
 export function readStore(storage){const raw=storage.getItem(STORAGE_KEY);return raw?validateBackup(JSON.parse(raw)):empty();}

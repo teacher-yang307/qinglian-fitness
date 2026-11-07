@@ -1,6 +1,6 @@
-import {uniqueId} from './src/id.mjs';
-import {programmeMetrics,durationParts} from './src/ui-metrics.mjs';
-import {createLocalClient,readStore,restoreBackup} from './src/local-store.mjs';
+import {uniqueId} from './src/id.mjs?v=1ee0d689b19a';
+import {programmeMetrics,durationParts} from './src/ui-metrics.mjs?v=1ee0d689b19a';
+import {createLocalClient,readStore,restoreBackup} from './src/local-store.mjs?v=1ee0d689b19a';
 const browserStorage={getItem:key=>window.localStorage.getItem(key),setItem:(key,value)=>window.localStorage.setItem(key,value)};
 const localFetch=createLocalClient(browserStorage);
 'use strict';
@@ -106,7 +106,7 @@ loadState();
 let pendingBackup=null;
 function backupCard(){return `<section class="card"><h2>本机数据与备份</h2><p class="sheet-intro" style="margin:12px 0">记录仅保存在当前浏览器，不自动跨设备同步。清理浏览器数据前，请导出备份。备份含个人资料和训练记录，请自行妥善保管。</p><div class="sheet-actions"><button class="secondary blue" data-action="backup-export">导出 JSON 备份</button><button class="primary" data-action="backup-import">导入备份</button></div><input id="backup-file" type="file" accept=".json,application/json" hidden></section>`;}
 function exportBackup(){const value=readStore(browserStorage);const blob=new Blob([JSON.stringify({...value,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='qinglian-'+todayKey+'.backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('备份已导出，请妥善保管');}
-document.addEventListener('change',async e=>{if(e.target.id!=='backup-file')return;const file=e.target.files[0];if(!file)return;try{if(file.size>8000000)throw new Error('备份文件过大');const {validateBackup}=await import('./src/local-store.mjs');pendingBackup=validateBackup(JSON.parse(await file.text()));openSheet('确认恢复备份',`<p class="sheet-intro">将恢复所选备份中的个人资料、阶段和训练记录，并替换当前浏览器中的记录。请先导出当前数据，保留可恢复副本。</p><div class="sheet-actions"><button class="secondary" data-action="close">取消</button><button class="primary" data-action="backup-confirm">确认恢复备份</button></div>`);}catch(error){toast(error.message||'备份读取失败，原记录未改变');}e.target.value='';});
+document.addEventListener('change',async e=>{if(e.target.id!=='backup-file')return;const file=e.target.files[0];if(!file)return;try{if(file.size>8000000)throw new Error('备份文件过大');const {validateBackup}=await import('./src/local-store.mjs?v=1ee0d689b19a');pendingBackup=validateBackup(JSON.parse(await file.text()));openSheet('确认恢复备份',`<p class="sheet-intro">将恢复所选备份中的个人资料、阶段和训练记录，并替换当前浏览器中的记录。请先导出当前数据，保留可恢复副本。</p><div class="sheet-actions"><button class="secondary" data-action="close">取消</button><button class="primary" data-action="backup-confirm">确认恢复备份</button></div>`);}catch(error){toast(error.message||'备份读取失败，原记录未改变');}e.target.value='';});
 window.addEventListener('storage',e=>{if(e.key==='qinglian-local-v1')loadState();});
 
 function onboardingPage(){return `${header('开始你的训练','先认识你，再安排适合的节奏')}<section class="card onboarding-card"><div class="detail-badge">${icon('user')}第一次使用</div><h2>用自己的资料，准备一份计划</h2><p>填写年龄、身高体重、目标、器械和每周可训练日期。按你的条件组合 28 天基础参考，进度从零开始。</p><ol class="steps"><li>填写个人信息与身体限制</li><li>生成每 7 天一个周期的训练安排</li><li>每天打卡，每周期记录身体反馈</li></ol><button class="primary" data-action="program-setup">填写资料，生成我的计划</button><p class="health-line">无需登录，资料只保存在当前浏览器；计划是规则参考，未经过独立专业审核。</p></section>${backupCard()}`;}
