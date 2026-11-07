@@ -1,4 +1,4 @@
-import {uniqueId} from './id.mjs?v=1ee0d689b19a';
+import {uniqueId} from './id.mjs?v=5f05d45f421b';
 // Reusable home programme content. Personal measurements live only in account data.
 export const PROGRAM_VERSION='home-return-2026-11-07-v1';
 export const PROGRAM_SOURCES=[
