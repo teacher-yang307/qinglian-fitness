@@ -28,14 +28,14 @@ GitHub Settings → Pages → Deploy from a branch → main /docs。修改源码
 
 ## DeepSeek 首周期方案
 
-独立 Cloudflare Worker 位于 cloud/worker.mjs；wrangler.jsonc 声明服务与配额计数绑定。前端只在 web/ai-config.mjs 中配置公开后端地址。DEEPSEEK_API_KEY 与 GENERATION_ACCESS_CODE 均在 Cloudflare Secret 中配置，绝不能写进源码、前端配置或 GitHub Actions 日志。
+独立 Cloudflare Worker 位于 cloud/worker.mjs；wrangler.jsonc 声明服务，保留旧 Durable Object 绑定以兼容已部署的迁移。前端只在 web/ai-config.mjs 中配置公开后端地址。DEEPSEEK_API_KEY 与 GENERATION_ACCESS_CODE 均在 Cloudflare Secret 中配置，绝不能写进源码、前端配置或 GitHub Actions 日志。
 
 用户主动同意后，才发送年龄、身高体重、目标、运动基础、器械、可训练日期、时间上限、无伤病状态与饮食偏好。称呼、联系方式、训练自由文本与历史记录不发送。调用邀请码仅在当前表单内使用，不写入本机记录。后端不打印请求正文或模型原文；保留 Cloudflare 原有基础可观测性设置。
 
 DeepSeek 返回第一周期的七天安排和四周期目标，经动作编号、剂量、时长、日期、恢复与器械校验后展示预览。用户确认才保存。第 2 至 4 周期继续为规则预备安排，尚未自动调用模型逐周改写。已有阶段不会被生成请求覆盖；要开启新阶段，先备份并重置。模型返回和应用校验不等同于专业审核。
 
-内测使用邀请码，默认每 IP 每 UTC 日 3 次、间隔至少 60 秒，全站每日最多 30 次；失败或结构不合格的调用同样计数。额度计数在 Durable Object 中事务更新，不依赖前端限制或跨域来源检查。邀请机制适用于小范围内测，公开扩展时应增加账号配额和更完善的滥用防护。使用相同网络的人共用 IP 配额。
+内测保留邀请码验证。目前已移除每 IP 每日次数、全站每日次数及请求间隔限制，生成请求不再读取或写入旧配额计数，之前额度用尽也不会阻止重试。DeepSeek 自身的服务限额仍由提供方控制。健康检查返回 generationLimitsEnabled=false，方便确认线上版本。
 
 部署：pnpm exec wrangler deploy --keep-vars。首次部署需要创建 BudgetGate 的 SQLite Durable Object。后端密钥在 Cloudflare 已保存时，不从本地读取或重建。之后配置公开后端地址，pnpm run build，提交 docs/ 到 GitHub Pages。构建产物和 .data/ 备份严格分开。
 
-连接自测页 diagnostics.html 仅使用固定虚构资料，不读写个人记录；自测有独立的每 IP 配额桶，仍计入全站每日 30 次总上限。检查模型连接只查询模型列表，不生成方案。初次真实验证返回 deepseek-flash，7 天方案通过校验；真实模型可用性和方案质量仍需持续观察。
+连接自测页 diagnostics.html 仅使用固定虚构资料，不读写个人记录；自测同样不再受站点生成次数和间隔限制。检查模型连接只查询模型列表，不生成方案。初次真实验证返回 deepseek-flash，7 天方案通过校验；真实模型可用性和方案质量仍需持续观察。
