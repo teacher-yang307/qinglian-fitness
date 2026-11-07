@@ -41,3 +41,15 @@ export function resetTrainingPlan(storage,expectedRevision){
  storage.setItem(STORAGE_KEY,JSON.stringify(next));return next;
 }
 export function restoreBeforeReset(storage){const raw=storage.getItem(RESET_BACKUP_KEY);if(!raw)throw new Error('没有找到重置前的记录');return restoreBackup(storage,JSON.parse(raw));}
+
+export async function approveAIProgram(storage,data,expectedRevision){
+ const {buildAIProgram}=await import('./ai-plan.mjs');
+ const current=readStore(storage);if(current.state.revision!==expectedRevision)throw new Error('资料或记录已改变，请重新生成方案');
+ if(current.state.program)throw new Error('已有训练阶段，请先导出并重置后再启用新的 AI 阶段');
+ const {installPersonalProgram}=await import('./domain.mjs');
+ const next=structuredClone(current);installPersonalProgram(next.state,{start:data.start,profile:data.profile});
+ const result=buildAIProgram({start:data.start,profile:data.profile,consent:true},data.raw,{model:data.model});
+ next.state.profile=result.profile;next.state.program=result.program;next.state.revision++;
+ next.history.push({revision:next.state.revision,operation:'ai-program-confirm',created_at:new Date().toISOString()});
+ storage.setItem(STORAGE_KEY,JSON.stringify(next));return next;
+}

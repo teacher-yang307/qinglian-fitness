@@ -3,3 +3,5 @@
 node_modules/
 *.backup.json
 .DS_Store
+
+.wrangler/

@@ -1,0 +1,36 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "qinglian-ai",
+	"main": "cloud/worker.mjs",
+	"compatibility_date": "2026-11-07",
+	"workers_dev": true,
+	"vars": {
+		"ALLOWED_ORIGIN": "https://teacher-yang307.github.io",
+		"DEEPSEEK_MODEL": "deepseek-flash",
+		"DAILY_CALL_LIMIT": "30",
+		"PER_IP_DAILY_LIMIT": "3"
+	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "BUDGET",
+				"class_name": "BudgetGate"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": [
+				"BudgetGate"
+			]
+		}
+	],
+	"observability": {
+		"enabled": true,
+		"logs": {
+			"enabled": true
+		}
+	},
+	"preview_urls": false
+}

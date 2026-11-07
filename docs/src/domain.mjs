@@ -1,5 +1,5 @@
-import {uniqueId} from './id.mjs?v=5f05d45f421b';
-import {EXERCISES,buildHomeProgram,buildPersonalProgram,PROGRAM_SOURCES} from './program.mjs?v=5f05d45f421b';
+import {uniqueId} from './id.mjs?v=9965dafd78d5';
+import {EXERCISES,buildHomeProgram,buildPersonalProgram,PROGRAM_SOURCES} from './program.mjs?v=9965dafd78d5';
 export const CATALOG_VERSION='reference-2026-11-07';
 export const RULE_VERSION='prototype-2';
 export const DEFAULT_PROFILE={name:'朋友',height:null,weight:null,age:null,goal:'保持健康',experience:'初学者',days:[0,2,5],duration:35,equipment:'居家 · 徒手',limits:'暂无',diet:'无特殊偏好',reminder:'19:00',background:''};
@@ -20,7 +20,7 @@ export function mondayOf(key){const day=new Date(key+'T00:00:00Z').getUTCDay();r
 export function validDate(key){return typeof key==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(key)&&!Number.isNaN(Date.parse(key+'T00:00:00Z'))&&new Date(key+'T00:00:00Z').toISOString().slice(0,10)===key;}
 export function completeProfile(p){return Number.isFinite(p.age)&&p.age>=18&&Number.isFinite(p.height)&&p.height>=80&&Number.isFinite(p.weight)&&p.weight>=25;}
 export function updateProfile(old,patch){if(!patch||typeof patch!=='object'||Array.isArray(patch))fail('个人资料格式不正确');const p={...old};const enums={goal:['减脂塑形','增肌力量','提升体能','保持健康'],experience:['初学者','有一定基础','规律训练'],equipment:['居家 · 徒手','居家 · 哑铃','健身房 · 综合器械','居家 · 2×4kg 哑铃 / 瑜伽垫']};
-for(const[k,v]of Object.entries(patch)){if(!(k in DEFAULT_PROFILE))fail('包含不支持的个人资料字段');if(['height','weight','age','duration'].includes(k)){const bounds={height:[80,250],weight:[25,350],age:[18,100],duration:[10,120]};if(typeof v!=='number'||!Number.isFinite(v)||v<bounds[k][0]||v>bounds[k][1]||(['age','duration'].includes(k)&&!Number.isInteger(v)))fail('请检查身高、体重、年龄或时长');p[k]=v;}
+for(const[k,v]of Object.entries(patch)){if(!Object.hasOwn(DEFAULT_PROFILE,k))fail('包含不支持的个人资料字段');if(['height','weight','age','duration'].includes(k)){const bounds={height:[80,250],weight:[25,350],age:[18,100],duration:[10,120]};if(typeof v!=='number'||!Number.isFinite(v)||v<bounds[k][0]||v>bounds[k][1]||(['age','duration'].includes(k)&&!Number.isInteger(v)))fail('请检查身高、体重、年龄或时长');p[k]=v;}
 else if(k==='days'){if(!Array.isArray(v)||!v.length||v.length>7||new Set(v).size!==v.length||v.some(d=>!Number.isInteger(d)||d<0||d>6))fail('请选择有效训练日期');p.days=[...v].sort();}
 else if(enums[k]){if(!enums[k].includes(v))fail('请选择有效选项');p[k]=v;}
 else{if(k==='background'&&typeof v==='string'&&!v.trim()){p[k]='';continue;}if(typeof v!=='string'||!v.trim()||v.length>(k==='name'?12:200))fail('请检查输入内容');if(k==='reminder'&&v!=='关闭'&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(v))fail('提醒时间不正确');p[k]=v.trim();}}

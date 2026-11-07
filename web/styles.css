@@ -20,3 +20,5 @@ body{min-height:100dvh;background-color:#f2f2f7;background-image:radial-gradient
 .form-error{border-radius:12px;background:#fff0ed;color:#a64b3b;padding:12px 14px;font-size:13px;line-height:1.8;margin:16px 0}.onboarding-card>p{font-size:13px;line-height:1.9;color:#7c8799;margin:12px 0}.onboarding-card .primary{margin-top:18px}.field input,.field select{font-size:16px}
 
 .reset-plan-button{background:#fff1ee;color:#ac6658}.form-error[hidden]{display:none}
+
+.consent-row{display:flex;align-items:flex-start;gap:9px;font-size:12px;line-height:1.8;color:#69778d;margin:14px 0}.consent-row input{margin-top:5px;flex-shrink:0}.ai-preview-day{border-radius:15px;background:#f5f7fc;padding:14px;margin:12px 0}.ai-preview-day summary{font-size:14px;font-weight:600;cursor:pointer;line-height:1.7}.ai-preview-day summary span{font-size:12px;color:#8995aa}.ai-preview-day p{font-size:12px;line-height:1.9;color:#758399;margin-top:10px}
