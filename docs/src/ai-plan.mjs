@@ -1,5 +1,5 @@
-import {freshState,updateProfile,completeProfile,validDate,dayKey,addDate,fail,installPersonalProgram} from './domain.mjs?v=9965dafd78d5';
-import {EXERCISES} from './program.mjs?v=9965dafd78d5';
+import {freshState,updateProfile,completeProfile,validDate,dayKey,addDate,fail,installPersonalProgram} from './domain.mjs?v=f48ff9318cb4';
+import {EXERCISES} from './program.mjs?v=f48ff9318cb4';
 export const AI_PROMPT_VERSION='deepseek-week-v1';
 const strength=new Set(['chair_squat','supported_squat','wall_press','row_4kg','bridge','dead_bug','bird_dog','calf_raise']);
 const text=(v,max,label)=>{if(typeof v!=='string'||!v.trim()||v.length>max)fail('AI '+label+'不完整或过长',502,'AI_INVALID_OUTPUT');return v.trim();};
