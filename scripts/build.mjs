@@ -8,4 +8,5 @@ await rm(new URL('docs/',root),{recursive:true,force:true});await mkdir(new URL(
 for(const folder of ['web','src','worker'])await cp(new URL(folder+'/',root),new URL('docs/'+(folder==='web'?'':folder+'/'),root),{recursive:true});
 for(const path of await files('docs/'))if(/\.(?:mjs|js)$/.test(path)){const url=new URL(path,root);let text=await readFile(url,'utf8');text=text.replace(/(['"])(\.{1,2}\/[^'"?]+\.mjs)\1/g,(_,quote,src)=>quote+src+'?v='+version+quote);await writeFile(url,text);}
 const index=new URL('docs/index.html',root);await writeFile(index,(await readFile(index,'utf8')).replace('src="./app.js"','src="./app.js?v='+version+'"').replace('href="./styles.css"','href="./styles.css?v='+version+'"'));
+for(const path of await files('docs/'))if(path.endsWith('.html')){const url=new URL(path,root);await writeFile(url,(await readFile(url,'utf8')).replace(/(src|href)="(\.\/[^"?]+\.(?:mjs|js|css))"/g,(_,attr,src)=>attr+'="'+src+'?v='+version+'"'));}
 await writeFile(new URL('docs/.nojekyll',root),'');console.log('Built versioned GitHub Pages at docs/: '+version);
