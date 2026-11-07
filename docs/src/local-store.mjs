@@ -1,5 +1,5 @@
-import {handleApi} from '../worker/api.mjs?v=f48ff9318cb4';
-import {freshState,updateProfile,CATALOG,validDate} from './domain.mjs?v=f48ff9318cb4';
+import {handleApi} from '../worker/api.mjs?v=71dcc0213e2d';
+import {freshState,updateProfile,CATALOG,validDate} from './domain.mjs?v=71dcc0213e2d';
 export const STORAGE_KEY='qinglian-local-v1';
 function empty(){return {schema:1,state:freshState(),history:[],requests:[]};}
 export function readStore(storage){const raw=storage.getItem(STORAGE_KEY);return raw?validateBackup(JSON.parse(raw)):empty();}
@@ -43,10 +43,10 @@ export function resetTrainingPlan(storage,expectedRevision){
 export function restoreBeforeReset(storage){const raw=storage.getItem(RESET_BACKUP_KEY);if(!raw)throw new Error('没有找到重置前的记录');return restoreBackup(storage,JSON.parse(raw));}
 
 export async function approveAIProgram(storage,data,expectedRevision){
- const {buildAIProgram}=await import('./ai-plan.mjs?v=f48ff9318cb4');
+ const {buildAIProgram}=await import('./ai-plan.mjs?v=71dcc0213e2d');
  const current=readStore(storage);if(current.state.revision!==expectedRevision)throw new Error('资料或记录已改变，请重新生成方案');
  if(current.state.program)throw new Error('已有训练阶段，请先导出并重置后再启用新的 AI 阶段');
- const {installPersonalProgram}=await import('./domain.mjs?v=f48ff9318cb4');
+ const {installPersonalProgram}=await import('./domain.mjs?v=71dcc0213e2d');
  const next=structuredClone(current);installPersonalProgram(next.state,{start:data.start,profile:data.profile});
  const result=buildAIProgram({start:data.start,profile:data.profile,consent:true},data.raw,{model:data.model});
  next.state.profile=result.profile;next.state.program=result.program;next.state.revision++;

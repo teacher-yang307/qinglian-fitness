@@ -27,7 +27,7 @@ export async function handleGenerate(request,env,fetcher=fetch){
   const reservation=await gate.fetch('https://budget/reserve',{method:'POST',body:JSON.stringify({client,requestId:data.requestId})});
   if(!reservation.ok)return json({error:'生成次数已达上限或请求正在处理中，请稍后重试'},429,{...headers,'Retry-After':'60'});
   const model=env.DEEPSEEK_MODEL||'deepseek-flash';
-  let response;try{response=await fetcher('https://api.deepseek.com/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+env.DEEPSEEK_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model,messages:deepSeekMessages(input),response_format:{type:'json_object'},thinking:{type:'disabled'},max_tokens:5000,stream:false}),signal:AbortSignal.timeout(60000),redirect:'manual'});}catch(error){const detail=String(error?.message||'network error').replaceAll(env.DEEPSEEK_API_KEY,'[redacted]').slice(0,180);return json({error:'DeepSeek 连接失败或超时，原计划保持不变（'+detail+'）'},502,headers);}
+  let response;try{response=await fetcher('https://api.deepseek.com/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+env.DEEPSEEK_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model,messages:deepSeekMessages(input),response_format:{type:'json_object'},thinking:{type:'disabled'},max_tokens:5000,stream:false}),signal:AbortSignal.timeout(60000),redirect:'manual'});}catch{return json({error:'DeepSeek 连接失败或超时，原计划保持不变'},502,headers);}
   if(!response.ok)return json({error:response.status===429?'DeepSeek 服务繁忙或额度受限，请稍后重试':'DeepSeek 调用失败，请联系站点维护者检查配置'},502,headers);
   let body;try{body=JSON.parse(await limitedText(response,150000));}catch{return json({error:'DeepSeek 返回无法读取，原计划保持不变'},502,headers);}
   const choice=body.choices?.[0],content=choice?.message?.content;
