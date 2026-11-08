@@ -1,7 +1,7 @@
-import {dayKey,addDate,taskList,fail} from './domain.mjs?v=9db06024c85f';
-import {planningInput,validateAIWeek} from './ai-plan.mjs?v=9db06024c85f';
-import {materializeTask,snapshotExercises,LIBRARY_VERSION} from './catalog.mjs?v=9db06024c85f';
-import {rulesWeek} from './standard-plan.mjs?v=9db06024c85f';
+import {dayKey,addDate,taskList,fail} from './domain.mjs?v=2ffd2dd33c55';
+import {planningInput,validateAIWeek} from './ai-plan.mjs?v=2ffd2dd33c55';
+import {materializeTask,snapshotExercises,LIBRARY_VERSION} from './catalog.mjs?v=2ffd2dd33c55';
+import {rulesWeek} from './standard-plan.mjs?v=2ffd2dd33c55';
 export function cyclePlanningData(state,index,consent=true,now=Date.now()){
  const program=state.program,today=dayKey(now);
  if(!program||!Number.isInteger(index)||index<1||index>3)fail('请选择本阶段下一周期');

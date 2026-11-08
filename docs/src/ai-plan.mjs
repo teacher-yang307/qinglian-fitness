@@ -1,6 +1,6 @@
-import {freshState,updateProfile,completeProfile,validDate,dayKey,addDate,fail} from './domain.mjs?v=9db06024c85f';
-import {STANDARD_LIBRARY,LIBRARY_VERSION,STANDARD_BY_ID,availableExercises,doseLimits,validatePrescription,estimateTaskSeconds} from './catalog.mjs?v=9db06024c85f';
-import {programFromWeek} from './standard-plan.mjs?v=9db06024c85f';
+import {freshState,updateProfile,completeProfile,validDate,dayKey,addDate,fail} from './domain.mjs?v=2ffd2dd33c55';
+import {STANDARD_LIBRARY,LIBRARY_VERSION,STANDARD_BY_ID,availableExercises,doseLimits,validatePrescription,estimateTaskSeconds} from './catalog.mjs?v=2ffd2dd33c55';
+import {programFromWeek} from './standard-plan.mjs?v=2ffd2dd33c55';
 export const AI_PROMPT_VERSION='deepseek-week-v3';
 export const PLAN_CONTRACT_VERSION='standard-plan-v1';
 const bad=(message,issue={})=>{throw Object.assign(new Error('AI 方案校验未通过：'+(issue.date?issue.date+' · ':'')+message),{status:502,code:'AI_INVALID_OUTPUT',issue:{...issue,message}});};

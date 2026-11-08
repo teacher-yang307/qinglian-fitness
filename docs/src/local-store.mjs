@@ -1,7 +1,7 @@
-import {handleApi} from '../worker/api.mjs?v=9db06024c85f';
-import {freshState,updateProfile,CATALOG,validDate} from './domain.mjs?v=9db06024c85f';
-import {resolveStandardTask,validateActual,STANDARD_LIBRARY} from './catalog.mjs?v=9db06024c85f';
-import {applyCycleDraft} from './cycle-plan.mjs?v=9db06024c85f';
+import {handleApi} from '../worker/api.mjs?v=2ffd2dd33c55';
+import {freshState,updateProfile,CATALOG,validDate} from './domain.mjs?v=2ffd2dd33c55';
+import {resolveStandardTask,validateActual,STANDARD_LIBRARY} from './catalog.mjs?v=2ffd2dd33c55';
+import {applyCycleDraft} from './cycle-plan.mjs?v=2ffd2dd33c55';
 export const STORAGE_KEY='qinglian-local-v1';
 function empty(){return {schema:1,state:freshState(),history:[],requests:[]};}
 export function readStore(storage){const raw=storage.getItem(STORAGE_KEY);return raw?validateBackup(JSON.parse(raw)):empty();}
@@ -69,7 +69,7 @@ export async function approveAIProgram(storage,data,expectedRevision){
   next.state.program=applyCycleDraft(next.state,data,data.raw,{model:data.model,engine:data.engine||'deepseek'});
  }else{
   if(current.state.program)throw new Error('已有训练阶段，请先导出并重置后再启用新的阶段');
-  const {buildAIProgram}=await import('./ai-plan.mjs?v=9db06024c85f');
+  const {buildAIProgram}=await import('./ai-plan.mjs?v=2ffd2dd33c55');
   const result=buildAIProgram({start:data.start,profile:data.profile,consent:true},data.raw,{model:data.model,engine:data.engine||'deepseek'});
   next.state.profile=result.profile;next.state.program=result.program;
  }

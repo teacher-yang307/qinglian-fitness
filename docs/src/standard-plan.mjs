@@ -1,5 +1,5 @@
-import {uniqueId} from './id.mjs?v=9db06024c85f';
-import {STANDARD_LIBRARY,LIBRARY_VERSION,materializeTask,snapshotExercises,doseLimits} from './catalog.mjs?v=9db06024c85f';
+import {uniqueId} from './id.mjs?v=2ffd2dd33c55';
+import {STANDARD_LIBRARY,LIBRARY_VERSION,materializeTask,snapshotExercises,doseLimits} from './catalog.mjs?v=2ffd2dd33c55';
 const shift=(key,n)=>{const d=new Date(key+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 const weekdays=key=>(new Date(key+'T12:00:00Z').getUTCDay()+6)%7;
 const meal={breakfast:'主食搭配鸡蛋、奶类或豆浆和水果；自行核对过敏原。',lunch:'米饭或杂粮饭，搭配肉鱼蛋豆及蔬菜。',dinner:'正常搭配主食、蛋白质和蔬菜，按饥饱感调整。'};

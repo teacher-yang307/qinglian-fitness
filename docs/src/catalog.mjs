@@ -1,5 +1,5 @@
-import {STANDARD_LIBRARY} from './library-data.mjs?v=9db06024c85f';
-import {validatePrescription,estimateTaskSeconds,formatPrescription} from './prescriptions.mjs?v=9db06024c85f';
+import {STANDARD_LIBRARY} from './library-data.mjs?v=2ffd2dd33c55';
+import {validatePrescription,estimateTaskSeconds,formatPrescription} from './prescriptions.mjs?v=2ffd2dd33c55';
 export {STANDARD_LIBRARY,validatePrescription,estimateTaskSeconds,formatPrescription};
 export const EQUIPMENT_OPTIONS=['居家 · 徒手','居家 · 哑铃','居家 · 2×4kg 哑铃 / 瑜伽垫','居家 · 壶铃','居家 · 弹力带','户外 · 单杠','户外 · 跳绳','健身房 · 综合器械'];
 export const LIBRARY_VERSION=STANDARD_LIBRARY.version;

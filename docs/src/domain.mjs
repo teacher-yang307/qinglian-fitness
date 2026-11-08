@@ -1,7 +1,7 @@
-import {uniqueId} from './id.mjs?v=9db06024c85f';
-import {STANDARD_VIEWS,resolveStandardTask,validateActual,EQUIPMENT_OPTIONS} from './catalog.mjs?v=9db06024c85f';
-import {buildStandardProgram} from './standard-plan.mjs?v=9db06024c85f';
-import {EXERCISES,buildHomeProgram,buildPersonalProgram,PROGRAM_SOURCES} from './program.mjs?v=9db06024c85f';
+import {uniqueId} from './id.mjs?v=2ffd2dd33c55';
+import {STANDARD_VIEWS,resolveStandardTask,validateActual,EQUIPMENT_OPTIONS} from './catalog.mjs?v=2ffd2dd33c55';
+import {buildStandardProgram} from './standard-plan.mjs?v=2ffd2dd33c55';
+import {EXERCISES,buildHomeProgram,buildPersonalProgram,PROGRAM_SOURCES} from './program.mjs?v=2ffd2dd33c55';
 export const CATALOG_VERSION='reference-2026-11-07';
 export const RULE_VERSION='prototype-2';
 export const DEFAULT_PROFILE={name:'朋友',height:null,weight:null,age:null,runningKm:null,goal:'保持健康',experience:'初学者',days:[0,2,5],duration:35,equipment:'居家 · 徒手',limits:'暂无',diet:'无特殊偏好',reminder:'19:00',background:''};
