@@ -1,15 +1,16 @@
-import {AI_API_BASE} from './ai-config.mjs?v=2ffd2dd33c55';
-import {planningInput,buildAIProgram,validateAIWeek} from './src/ai-plan.mjs?v=2ffd2dd33c55';
-import {uniqueId} from './src/id.mjs?v=2ffd2dd33c55';
-import {GENERATION_POLICY} from './src/exercise-contract.mjs?v=2ffd2dd33c55';
-import {taskList} from './src/domain.mjs?v=2ffd2dd33c55';
-import {STANDARD_LIBRARY,LIBRARY_VERSION,EQUIPMENT_OPTIONS,taskPrescription,resolveStandardTask} from './src/catalog.mjs?v=2ffd2dd33c55';
-import {rulesWeek,programFromWeek} from './src/standard-plan.mjs?v=2ffd2dd33c55';
-import {cyclePlanningData,localCycleDraft} from './src/cycle-plan.mjs?v=2ffd2dd33c55';
-import {escapeHTML,actionCard,cycleCard,draftPreview} from './components.mjs?v=2ffd2dd33c55';
-import {createGenerationFlow} from './generation-flow.mjs?v=2ffd2dd33c55';
-import {programmeMetrics,durationParts} from './src/ui-metrics.mjs?v=2ffd2dd33c55';
-import {createLocalClient,readStore,restoreBackup,resetTrainingPlan,hasResetBackup,restoreBeforeReset,approveAIProgram,hasUpgradeBackup,restoreBeforeUpgrade} from './src/local-store.mjs?v=2ffd2dd33c55';
+import {AI_API_BASE} from './ai-config.mjs?v=5cf8bb297927';
+import {planningInput,buildAIProgram,validateAIWeek} from './src/ai-plan.mjs?v=5cf8bb297927';
+import {uniqueId} from './src/id.mjs?v=5cf8bb297927';
+import {GENERATION_POLICY} from './src/exercise-contract.mjs?v=5cf8bb297927';
+import {taskList} from './src/domain.mjs?v=5cf8bb297927';
+import {STANDARD_LIBRARY,LIBRARY_VERSION,EQUIPMENT_OPTIONS,taskPrescription,resolveStandardTask} from './src/catalog.mjs?v=5cf8bb297927';
+import {rulesWeek,programFromWeek} from './src/standard-plan.mjs?v=5cf8bb297927';
+import {cyclePlanningData,localCycleDraft} from './src/cycle-plan.mjs?v=5cf8bb297927';
+import {escapeHTML,actionCard,cycleCard,draftPreview} from './components.mjs?v=5cf8bb297927';
+import {createGenerationFlow} from './generation-flow.mjs?v=5cf8bb297927';
+import {withDeadline,timeoutError} from './src/deadline.mjs?v=5cf8bb297927';
+import {programmeMetrics,durationParts} from './src/ui-metrics.mjs?v=5cf8bb297927';
+import {createLocalClient,readStore,restoreBackup,resetTrainingPlan,hasResetBackup,restoreBeforeReset,approveAIProgram,hasUpgradeBackup,restoreBeforeUpgrade} from './src/local-store.mjs?v=5cf8bb297927';
 const browserStorage={getItem:key=>window.localStorage.getItem(key),setItem:(key,value)=>window.localStorage.setItem(key,value)};
 const localFetch=createLocalClient(browserStorage);
 let pendingAI=null,aiRequestController=null,initialGeneration=null;
@@ -20,7 +21,7 @@ const app=document.getElementById('app'),nav=document.querySelector('.bottom-nav
 const generationScreen=document.getElementById('generation-screen');
 function generationView(error){
  const failed=Boolean(error);
- generationScreen.innerHTML=`<div class="generation-page"><div class="generation-brand">轻练 <span>· 为你安排每一步</span></div><section class="generation-card ${failed?'generation-failed':''}"><div class="generation-symbol" aria-hidden="true">${icon(failed?'clipboard':'leaf')}<i></i></div><p class="generation-eyebrow">${failed?'资料已保留':'你的第一份训练计划'}</p><h1 id="generation-title" tabindex="-1">${failed?'这次未能完成生成':'正在从 DeepSeek<br>获取训练计划'}</h1><p id="generation-description">${failed?'可以重新尝试，也可以返回修改资料。确认启用前，不会保存或替换训练计划。':'正在根据你的目标、运动基础和可用器械，安排适合你的训练节奏。'}</p>${failed?`<p class="generation-error" role="alert">${escapeHTML(error.message||'生成失败，请稍后重试')}</p><div class="generation-actions"><button class="primary" data-action="generation-retry">重新尝试</button><button class="secondary" data-action="generation-back">返回修改资料</button></div>`:`<div class="generation-status" role="status" aria-live="polite"><span class="generation-spinner" aria-hidden="true"></span><p id="generation-status-text">正在生成与检查，请稍候…</p></div><div class="generation-notes"><span>${icon('dumbbell')}标准动作库</span><span>${icon('shield')}方案校验</span><span>${icon('clipboard')}完成后先预览</span></div>`}</section><p class="generation-footnote">${failed?'你填写的资料仍在当前页面中。':'请保持页面打开，完成后会自动展示计划预览。<br>复杂方案可能需要更久，必要时会自动修正。'}</p></div>`;
+ generationScreen.innerHTML=`<div class="generation-page"><div class="generation-brand">轻练 <span>· 为你安排每一步</span></div><section class="generation-card ${failed?'generation-failed':''}"><div class="generation-symbol" aria-hidden="true">${icon(failed?'clipboard':'leaf')}<i></i></div><p class="generation-eyebrow">${failed?'资料已保留':'你的第一份训练计划'}</p><h1 id="generation-title" tabindex="-1">${failed?'这次未能完成生成':'正在从 DeepSeek<br>获取训练计划'}</h1><p id="generation-description">${failed?'可以重新尝试，也可以返回修改资料。确认启用前，不会保存或替换训练计划。':'正在根据你的目标、运动基础和可用器械，安排适合你的训练节奏。'}</p>${failed?`<p class="generation-error" role="alert">${escapeHTML(error.message||'生成失败，请稍后重试')}</p><div class="generation-actions"><button class="primary" data-action="generation-retry">重新尝试</button><button class="secondary" data-action="generation-back">返回修改资料</button></div>`:`<div class="generation-status" role="status" aria-live="polite"><span class="generation-spinner" aria-hidden="true"></span><p id="generation-status-text">正在生成与检查，请稍候…</p></div><p id="generation-clock" class="generation-clock" aria-live="off">已等待 0 秒 · 超时会自动提示重试</p><div class="generation-notes"><span>${icon('dumbbell')}标准动作库</span><span>${icon('shield')}方案校验</span><span>${icon('clipboard')}完成后先预览</span></div>`}</section><p class="generation-footnote">${failed?'你填写的资料仍在当前页面中。':'请保持页面打开，完成后会自动展示计划预览。<br>复杂方案可能需要更久，必要时会自动修正。'}</p></div>`;
  if(!generationScreen.open)generationScreen.showModal();
  document.getElementById('generation-title').focus();
 }
@@ -131,7 +132,7 @@ loadState();
 let pendingBackup=null;
 function backupCard(){return `<section class="card"><h2>本机数据与备份</h2><p class="sheet-intro" style="margin:12px 0">记录仅保存在当前浏览器，不自动跨设备同步。清理浏览器数据前，请导出备份。备份含个人资料和训练记录，请自行妥善保管。</p><div class="sheet-actions"><button class="secondary blue" data-action="backup-export">导出 JSON 备份</button><button class="primary" data-action="backup-import">导入备份</button></div>${hasUpgradeBackup(browserStorage)?'<button class="link" style="margin-top:12px" data-action="upgrade-restore">恢复升级前记录</button>':''}<input id="backup-file" type="file" accept=".json,application/json" hidden></section>`;}
 function exportBackup(){const value=readStore(browserStorage);const blob=new Blob([JSON.stringify({...value,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='qinglian-'+todayKey+'.backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('备份已导出，请妥善保管');}
-document.addEventListener('change',async e=>{if(e.target.id!=='backup-file')return;const file=e.target.files[0];if(!file)return;try{if(file.size>8000000)throw new Error('备份文件过大');const {validateBackup}=await import('./src/local-store.mjs?v=2ffd2dd33c55');pendingBackup=validateBackup(JSON.parse(await file.text()));openSheet('确认恢复备份',`<p class="sheet-intro">将恢复所选备份中的个人资料、阶段和训练记录，并替换当前浏览器中的记录。请先导出当前数据，保留可恢复副本。</p><div class="sheet-actions"><button class="secondary" data-action="close">取消</button><button class="primary" data-action="backup-confirm">确认恢复备份</button></div>`);}catch(error){toast(error.message||'备份读取失败，原记录未改变');}e.target.value='';});
+document.addEventListener('change',async e=>{if(e.target.id!=='backup-file')return;const file=e.target.files[0];if(!file)return;try{if(file.size>8000000)throw new Error('备份文件过大');const {validateBackup}=await import('./src/local-store.mjs?v=5cf8bb297927');pendingBackup=validateBackup(JSON.parse(await file.text()));openSheet('确认恢复备份',`<p class="sheet-intro">将恢复所选备份中的个人资料、阶段和训练记录，并替换当前浏览器中的记录。请先导出当前数据，保留可恢复副本。</p><div class="sheet-actions"><button class="secondary" data-action="close">取消</button><button class="primary" data-action="backup-confirm">确认恢复备份</button></div>`);}catch(error){toast(error.message||'备份读取失败，原记录未改变');}e.target.value='';});
 window.addEventListener('storage',e=>{if(e.key==='qinglian-local-v1')loadState();});
 
 function onboardingPage(){return `${header('开始你的训练','先认识你，再安排适合的节奏')}<section class="card onboarding-card"><div class="detail-badge">${icon('user')}第一次使用</div><h2>用自己的资料，准备一份计划</h2><p>填写年龄、身高体重、目标、器械和每周可训练日期。按你的条件组合 28 天基础参考，进度从零开始。</p><ol class="steps"><li>填写个人信息与身体限制</li><li>生成每 7 天一个周期的训练安排</li><li>每天打卡，每周期记录身体反馈</li></ol><button class="primary" data-action="program-setup">填写资料，生成我的计划</button><p class="health-line">无需登录，资料只保存在当前浏览器；计划先预览、确认后使用，未经过独立专业审核。</p></section>${backupCard()}${hasResetBackup(browserStorage)?`<section class="card"><button class="link" data-action="reset-plan-restore">恢复重置前的计划与记录</button></section>`:''}`;}
@@ -143,7 +144,7 @@ function confirmPlanReset(){openSheet('重置训练计划？',`<p class="sheet-i
 function confirmResetRestore(){openSheet('恢复重置前的记录？',`<p class="sheet-intro">将用最近一次重置前保存的本机备份，替换当前计划和记录。需要保留当前数据时，请先导出备份。</p><p id="reset-error" class="form-error" role="alert" hidden></p><div class="sheet-actions"><button class="secondary" data-action="close">取消</button><button class="primary" data-action="reset-plan-restore-confirm">确认恢复</button></div>`);}
 function showResetError(message){const el=document.getElementById('reset-error');if(el){el.hidden=false;el.textContent=message;}else toast(message);}
 
-function aiGenerationFields(){return AI_API_BASE?`${select('generation','计划生成方式','DeepSeek 个性化方案',['DeepSeek 个性化方案','本机规则参考'])}${input('accessCode','AI 内测邀请码（不是 DeepSeek 密钥）','','password','autocomplete="off" maxlength="128"')}<label class="consent-row"><input type="checkbox" name="aiConsent">我同意将年龄、身高体重、目标、运动与跑步基础、器械、可训练时间、无伤病状态及饮食偏好发送给 DeepSeek，仅用于本次方案生成；不发送称呼、联系方式、历史记录及训练描述自由文本。</label><p class="health-line">AI 会先生成预览，确认后才启用。动作名称与讲解固定，训练组次和时长按资料安排；不合格时自动修正，最多尝试 4 次，可能需要约 3 分钟。餐饮仍需自行核对过敏原。</p>`:'<p class="health-line">当前使用本机规则参考；DeepSeek 服务配置后可选择 AI 方案。</p>';}
+function aiGenerationFields(){return AI_API_BASE?`${select('generation','计划生成方式','DeepSeek 个性化方案',['DeepSeek 个性化方案','本机规则参考'])}${input('accessCode','AI 内测邀请码（不是 DeepSeek 密钥）','','password','autocomplete="off" maxlength="128"')}<label class="consent-row"><input type="checkbox" name="aiConsent">我同意将年龄、身高体重、目标、运动与跑步基础、器械、可训练时间、无伤病状态及饮食偏好发送给 DeepSeek，仅用于本次方案生成；不发送称呼、联系方式、历史记录及训练描述自由文本。</label><p class="health-line">AI 会先生成预览，确认后才启用。动作名称与讲解固定，训练组次和时长按资料安排；不合格时自动修正，最多尝试 4 次，等待过久会自动停止并提示重试。餐饮仍需自行核对过敏原。</p>`:'<p class="health-line">当前使用本机规则参考；DeepSeek 服务配置后可选择 AI 方案。</p>';}
 function cycleGenerateForm(index){
  const cycle=state.program?.cycles[index];if(!cycle||index<1||index>3)return;
  if(!state.reviews[cycle.start]){reviewForm(index-1);return;}
@@ -167,18 +168,29 @@ async function generateDeepSeekPlan(form,data){
  const initial=!state.program&&data.purpose!=='cycle';
  const operation=async()=>{
   button.disabled=true;button.textContent='正在生成并校验，请稍候…';
-  const controller=new AbortController();aiRequestController=controller;let timedOut=false;const timeout=setTimeout(()=>{timedOut=true;controller.abort();},GENERATION_POLICY.clientTimeoutMs);
+  const controller=new AbortController();aiRequestController=controller;const beganAt=Date.now(),expiresAt=beganAt+GENERATION_POLICY.clientTimeoutMs;
+  const checkElapsed=()=>{
+   const elapsed=Math.floor((Date.now()-beganAt)/1000),clock=document.getElementById('generation-clock');
+   if(clock)clock.textContent='已等待 '+(elapsed<60?elapsed+' 秒':Math.floor(elapsed/60)+' 分 '+elapsed%60+' 秒')+' · 超时会自动提示重试';
+   if(Date.now()>=expiresAt&&!controller.signal.aborted)controller.abort(timeoutError());
+  };
+  const elapsedTimer=setInterval(checkElapsed,1000);
+  document.addEventListener('visibilitychange',checkElapsed);window.addEventListener('pageshow',checkElapsed);
   try{
-   const res=await fetch(new URL('/generate',base),{method:'POST',headers:{'Content-Type':'application/json','X-Access-Code':data.accessCode.trim()},body:JSON.stringify({...input,consent:true,requestId:uniqueId()}),signal:controller.signal,credentials:'omit',redirect:'error'});
-   let response;try{response=await res.json();}catch(error){if(controller.signal.aborted)throw error;throw new Error('未收到完整可读取的方案，请稍后重新尝试。');}if(!res.ok)throw new Error(response.error||'生成失败，原计划保留');
-   if(controller.signal.aborted)throw new DOMException('Aborted','AbortError');
+   const response=await withDeadline(async signal=>{
+    const res=await fetch(new URL('/generate',base),{method:'POST',headers:{'Content-Type':'application/json','X-Access-Code':data.accessCode.trim()},body:JSON.stringify({...input,consent:true,requestId:uniqueId()}),signal,credentials:'omit',redirect:'error'});
+    let response;try{response=await res.json();}catch(error){if(signal.aborted)throw signal.reason;throw new Error('未收到完整可读取的方案，请稍后重新尝试。');}if(!res.ok)throw new Error(response.error||'生成失败，原计划保留');return response;
+   },{timeoutMs:GENERATION_POLICY.clientTimeoutMs,signal:controller.signal});
+   if(controller.signal.aborted)throw controller.signal.reason;
+   if(Date.now()>=expiresAt)throw timeoutError();
    const current=readStore(browserStorage);if(current.state.revision!==revision||current.state.program?.id!==programId)throw new Error('资料或记录已在其他页面改变，请返回检查资料后重新生成');
    showPlanPreview(data,response.result,{model:response.model,engine:'deepseek',generation:response.generation});
   }catch(error){
-   if(controller.signal.aborted||error.name==='AbortError')throw new Error(timedOut?'等待已超时，尚未启用计划。请稍后重新尝试。':'生成已取消，原计划未改变');
+   if(error.name==='TimeoutError')throw new Error('等待已超时，已停止本次等待，尚未启用计划。请检查网络后重新尝试。');
+   if(controller.signal.aborted||error.name==='AbortError')throw new Error('生成已取消，原计划未改变');
    if(error instanceof TypeError)throw new Error('网络连接中断，未能获取完整方案。请检查网络后重试。');
    throw error;
-  }finally{clearTimeout(timeout);if(aiRequestController===controller)aiRequestController=null;button.textContent=label;button.disabled=false;}
+  }finally{clearInterval(elapsedTimer);document.removeEventListener('visibilitychange',checkElapsed);window.removeEventListener('pageshow',checkElapsed);if(aiRequestController===controller)aiRequestController=null;button.textContent=label;button.disabled=false;}
  };
  if(initial){initialGeneration={form,data};await firstGenerationFlow.run(operation);}
  else await operation();

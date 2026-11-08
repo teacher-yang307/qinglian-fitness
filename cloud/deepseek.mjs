@@ -1,12 +1,16 @@
 import {deepSeekMessages,validateAIWeek,AI_PROMPT_VERSION} from '../src/ai-plan.mjs';
 import {GENERATION_POLICY,EXERCISE_CONTRACT_VERSION} from '../src/exercise-contract.mjs';
+import {withDeadline} from '../src/deadline.mjs';
 
 const generationError=(message,details={})=>Object.assign(new Error(message),{status:502,code:'AI_GENERATION_FAILED',retryable:true,...details});
-async function limitedResponse(response,max){
+async function limitedResponse(response,max,signal){
  const reader=response.body?.getReader();if(!reader)return '';
+ const cancel=()=>{reader.cancel().catch(()=>{});};
+ if(signal?.aborted){cancel();throw signal.reason;}
+ signal?.addEventListener('abort',cancel,{once:true});
  let length=0;const parts=[];
  try{while(true){const {value,done}=await reader.read();if(done)break;length+=value.length;if(length>max){await reader.cancel();throw generationError('模型回答过长，请精简后返回完整 JSON');}parts.push(value);}}
- finally{reader.releaseLock();}
+ finally{signal?.removeEventListener('abort',cancel);reader.releaseLock();}
  const bytes=new Uint8Array(length);let offset=0;for(const p of parts){bytes.set(p,offset);offset+=p.length;}return new TextDecoder().decode(bytes);
 }
 function wait(ms,signal){return new Promise((resolve,reject)=>{
@@ -23,7 +27,7 @@ function providerError(response){
  return generationError('DeepSeek 请求配置不被接受，请联系站点维护者检查配置',{retryable:false});
 }
 export async function generateValidatedWeek(input,env,fetcher=fetch,requestSignal,options={}){
- const {maxAttempts,attemptTimeoutMs,totalTimeoutMs}=GENERATION_POLICY;
+ const {maxAttempts,attemptTimeoutMs,totalTimeoutMs}={...GENERATION_POLICY,...options.policy};
  const sleep=options.sleep||wait,now=options.now||Date.now,deadline=now()+totalTimeoutMs;
  const overallSignal=AbortSignal.any([AbortSignal.timeout(totalTimeoutMs),...(requestSignal?[requestSignal]:[])]);
  const baseMessages=deepSeekMessages(input),model=env.DEEPSEEK_MODEL||'deepseek-flash';
@@ -34,12 +38,13 @@ export async function generateValidatedWeek(input,env,fetcher=fetch,requestSigna
   if(overallSignal.aborted||now()>=deadline){lastError=generationError('生成等待超时，请稍后重试',{status:504});break;}
   attempts++;let content='';
   try{
-   const callSignal=AbortSignal.any([overallSignal,AbortSignal.timeout(Math.max(1,Math.min(attemptTimeoutMs,deadline-now())))]);
-   let response;
-   try{response=await fetcher('https://api.deepseek.com/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+env.DEEPSEEK_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model,messages,response_format:{type:'json_object'},thinking:{type:'disabled'},max_tokens:5000,stream:false}),signal:callSignal,redirect:'manual'});}
-   catch{throw generationError('DeepSeek 连接失败或超时',{transient:true});}
-   if(!response.ok){const error=providerError(response);await response.body?.cancel();throw error;}
-   let envelope;try{envelope=JSON.parse(await limitedResponse(response,150000));}catch(error){if(error.code==='AI_GENERATION_FAILED')throw error;throw generationError('模型响应无法读取，请返回完整 JSON');}
+   const envelope=await withDeadline(async callSignal=>{
+    let response;
+    try{response=await fetcher('https://api.deepseek.com/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+env.DEEPSEEK_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model,messages,response_format:{type:'json_object'},thinking:{type:'disabled'},max_tokens:5000,stream:false}),signal:callSignal,redirect:'manual'});}
+    catch{throw generationError('DeepSeek 连接失败或超时',{transient:true});}
+    if(!response.ok){const error=providerError(response);response.body?.cancel().catch(()=>{});throw error;}
+    try{return JSON.parse(await limitedResponse(response,150000,callSignal));}catch(error){if(error.code==='AI_GENERATION_FAILED')throw error;if(callSignal.aborted)throw callSignal.reason;throw generationError('模型响应无法读取，请返回完整 JSON');}
+   },{timeoutMs:Math.max(1,Math.min(attemptTimeoutMs,deadline-now())),signal:overallSignal});
    for(const [key,source] of [['inputTokens','prompt_tokens'],['outputTokens','completion_tokens']]){const value=envelope.usage?.[source];if(Number.isFinite(value)&&value>=0)usage[key]+=value;}
    const choice=envelope.choices?.[0];content=typeof choice?.message?.content==='string'?choice.message.content:'';
    if(choice?.finish_reason!=='stop'||!content.trim())throw generationError('模型回答为空或被截断，请精简内容并返回完整七天 JSON');
@@ -50,7 +55,7 @@ export async function generateValidatedWeek(input,env,fetcher=fetch,requestSigna
    return{result:raw,model,promptVersion:AI_PROMPT_VERSION,exerciseContractVersion:EXERCISE_CONTRACT_VERSION,usage,generation:{attempts,maxAttempts}};
   }catch(error){
    if(requestSignal?.aborted)throw generationError('生成已取消，原计划未改变',{status:499,retryable:false,attempts});
-   lastError=error.code==='AI_INVALID_OUTPUT'||error.code==='AI_GENERATION_FAILED'?error:generationError('模型响应读取失败',{transient:true});
+   lastError=error.code==='AI_INVALID_OUTPUT'||error.code==='AI_GENERATION_FAILED'?error:generationError(error.name==='TimeoutError'?'DeepSeek 连接或回答读取超时':'模型响应读取失败',{transient:true});
    if(overallSignal.aborted||now()>=deadline){lastError=generationError('生成等待超时，请稍后重试',{status:504});break;}
    if(lastError.retryable===false||attempts>=maxAttempts)break;
    // Each repair gets the original contract plus only the latest failed answer.

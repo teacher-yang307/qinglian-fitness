@@ -90,3 +90,24 @@ test('取消或达到总等待预算后停止调用，过长 Retry-After 不盲�
  let clock=0;const timed=await realHandleGenerate(request(),environment(),async()=>{calls++;clock=200000;throw new Error('network');},{now:()=>clock,sleep:async()=>{}});assert.equal(timed.status,504);assert.equal(calls,1);
  calls=0;const limited=await handleGenerate(request(),environment(),async()=>{calls++;return new Response('',{status:429,headers:{'Retry-After':'300'}});});assert.equal(limited.status,502);assert.equal(calls,1);
 });
+test('上游 fetch 忽略取消、永远不返回时，单次硬超时可重试并恢复',async()=>{
+ let calls=0;
+ const response=await realHandleGenerate(request(),environment(),async()=>{
+  calls++;if(calls===1)return new Promise(()=>{});
+  return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(rawWeek())}}]});
+ },{policy:{attemptTimeoutMs:10,totalTimeoutMs:10000,maxAttempts:2},sleep:async()=>{}});
+ assert.equal(response.status,200);assert.equal(calls,2);assert.equal((await response.json()).generation.attempts,2);
+});
+test('上游只返回响应头和不完整正文时，截止后取消流并重试，不无限读取',async()=>{
+ let calls=0,canceled=false;
+ const response=await realHandleGenerate(request(),environment(),async()=>{
+  if(++calls===1)return new Response(new ReadableStream({start(c){c.enqueue(new TextEncoder().encode('{"choices":'));},cancel(){canceled=true;}}));
+  return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(rawWeek())}}]});
+ },{policy:{attemptTimeoutMs:10,totalTimeoutMs:10000,maxAttempts:2},sleep:async()=>{}});
+ assert.equal(response.status,200);assert.equal(calls,2);assert.equal(canceled,true);
+});
+test('上游永远不结束时，总预算独立生效并返回超时，不耗尽无边界重试',async()=>{
+ let calls=0;
+ const response=await realHandleGenerate(request(),environment(),async()=>{calls++;return new Promise(()=>{});},{policy:{attemptTimeoutMs:100,totalTimeoutMs:15},sleep:async()=>{}});
+ assert.equal(response.status,504);assert.equal(calls,1);assert.match((await response.json()).error,/超时/);
+});
