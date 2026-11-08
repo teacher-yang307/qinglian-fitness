@@ -1,5 +1,7 @@
-import {handleApi} from '../worker/api.mjs?v=71dcc0213e2d';
-import {freshState,updateProfile,CATALOG,validDate} from './domain.mjs?v=71dcc0213e2d';
+import {handleApi} from '../worker/api.mjs?v=9db06024c85f';
+import {freshState,updateProfile,CATALOG,validDate} from './domain.mjs?v=9db06024c85f';
+import {resolveStandardTask,validateActual,STANDARD_LIBRARY} from './catalog.mjs?v=9db06024c85f';
+import {applyCycleDraft} from './cycle-plan.mjs?v=9db06024c85f';
 export const STORAGE_KEY='qinglian-local-v1';
 function empty(){return {schema:1,state:freshState(),history:[],requests:[]};}
 export function readStore(storage){const raw=storage.getItem(STORAGE_KEY);return raw?validateBackup(JSON.parse(raw)):empty();}
@@ -12,12 +14,26 @@ export function validateBackup(value){
  const profilePatch={...s.profile};if(profilePatch.background==='')delete profilePatch.background;for(const k of ['age','height','weight'])if(profilePatch[k]===null)delete profilePatch[k];
  s.profile=updateProfile(freshState().profile,profilePatch);
  for(const k of ['logs','reviews','plans','drafts','snapshots','sessions'])if(!s[k]||typeof s[k]!=='object'||Array.isArray(s[k]))bad();
- const tasks=t=>{if(!Array.isArray(t))bad();for(const a of t)if(!a||!CATALOG[a.id]||!Number.isFinite(a.minutes)||a.minutes<0||a.minutes>120)bad();};
+ const tasks=t=>{if(!Array.isArray(t))bad();for(const a of t){
+  if(!a||!Object.hasOwn(CATALOG,a.id))bad();
+  if(a.prescription){try{if(a.id!==a.prescription.id||typeof a.taskId!=='string'||a.taskId.length>200||!s.program?.librarySnapshots?.[a.libraryVersion])bad();const resolved=resolveStandardTask(a,s.program);if(resolved.minutes===null||a.minutes!==resolved.minutes||a.minutes>120)bad();}catch{bad();}}
+  else if(!Number.isFinite(a.minutes)||a.minutes<0||a.minutes>120)bad();
+ }};
+ if(s.program?.librarySnapshots){
+  for(const [version,snapshot]of Object.entries(s.program.librarySnapshots)){
+   if(!/^\d+\.\d+\.\d+$/.test(version)||!snapshot||!snapshot.contract||!snapshot.exercises)bad();
+   for(const [id,x]of Object.entries(snapshot.exercises)){
+    if(!x||x.id!==id||typeof x.name!=='string'||typeof x.image!=='string'||!/^images\/[\w-]+\.(png|svg)$/.test(x.image)||!Array.isArray(x.steps)||x.steps.some(v=>typeof v!=='string')||!x.measurement||!Object.hasOwn(STANDARD_LIBRARY.measurementTypes,x.measurement.type)||!Array.isArray(x.measurement.requiredFields)||!Array.isArray(x.measurement.optionalFields)||typeof x.commonErrors!=='string'||typeof x.safetyNotes!=='string')bad();
+   }
+  }
+ }
+
  for(const [key,records]of Object.entries(s.logs)){if(!validDate(key)||!records||typeof records!=='object'||Array.isArray(records))bad();for(const[id,r]of Object.entries(records))if(!CATALOG[id]||!r||typeof r.done!=='boolean'||(r.minutes!=null&&(!Number.isFinite(r.minutes)||r.minutes<0)))bad();}
  for(const [key,t]of Object.entries(s.snapshots)){if(!validDate(key))bad();tasks(t);}
  const days=list=>{if(!Array.isArray(list))bad();for(const d of list){if(!d||!validDate(d.date))bad();tasks(d.tasks);}};
  for(const p of [...Object.values(s.plans),...Object.values(s.drafts)]){if(!p||!validDate(p.start))bad();days(p.days);}
  if(s.program){const p=s.program;if(!validDate(p.start)||!validDate(p.end)||typeof p.title!=='string'||!Array.isArray(p.cycles)||p.cycles.length!==4)bad();for(const c of p.cycles){if(!c||!validDate(c.start)||!Array.isArray(c.days)||c.days.length!==7)bad();days(c.days);}}
+ for(const [key,records]of Object.entries(s.logs))for(const [id,r]of Object.entries(records))if(r.actual){try{const task=(s.snapshots[key]||s.program?.cycles.flatMap(c=>c.days).find(d=>d.date===key)?.tasks||[]).find(t=>t.id===id);if(!task)bad();validateActual(task,r.actual);}catch{bad();}}
  for(const r of Object.values(s.reviews))if(!r||typeof r!=='object'||!Number.isFinite(r.weight))bad();
  for(const r of value.history)if(!r||!Number.isInteger(r.revision)||typeof r.operation!=='string'||typeof r.created_at!=='string')bad();
  return structuredClone(value);
@@ -38,18 +54,29 @@ export function resetTrainingPlan(storage,expectedRevision){
  next.history.push({revision:next.state.revision,operation:'reset-program',created_at:new Date().toISOString()});
  // Save a recoverable copy before replacing the active records. A failed write never clears data.
  storage.setItem(RESET_BACKUP_KEY,JSON.stringify(current));
+ if(readStore(storage).state.revision!==expectedRevision)throw new Error('资料或记录已改变，请重新生成方案');
  storage.setItem(STORAGE_KEY,JSON.stringify(next));return next;
 }
 export function restoreBeforeReset(storage){const raw=storage.getItem(RESET_BACKUP_KEY);if(!raw)throw new Error('没有找到重置前的记录');return restoreBackup(storage,JSON.parse(raw));}
 
+export const UPGRADE_BACKUP_KEY='qinglian-before-standard-library-v2';
+export function hasUpgradeBackup(storage){try{return !!storage.getItem(UPGRADE_BACKUP_KEY);}catch{return false;}}
+export function restoreBeforeUpgrade(storage){const raw=storage.getItem(UPGRADE_BACKUP_KEY);if(!raw)throw new Error('没有升级前备份');return restoreBackup(storage,JSON.parse(raw));}
 export async function approveAIProgram(storage,data,expectedRevision){
- const {buildAIProgram}=await import('./ai-plan.mjs?v=71dcc0213e2d');
  const current=readStore(storage);if(current.state.revision!==expectedRevision)throw new Error('资料或记录已改变，请重新生成方案');
- if(current.state.program)throw new Error('已有训练阶段，请先导出并重置后再启用新的 AI 阶段');
- const {installPersonalProgram}=await import('./domain.mjs?v=71dcc0213e2d');
- const next=structuredClone(current);installPersonalProgram(next.state,{start:data.start,profile:data.profile});
- const result=buildAIProgram({start:data.start,profile:data.profile,consent:true},data.raw,{model:data.model});
- next.state.profile=result.profile;next.state.program=result.program;next.state.revision++;
- next.history.push({revision:next.state.revision,operation:'ai-program-confirm',created_at:new Date().toISOString()});
+ const next=structuredClone(current);
+ if(data.purpose==='cycle'){
+  next.state.program=applyCycleDraft(next.state,data,data.raw,{model:data.model,engine:data.engine||'deepseek'});
+ }else{
+  if(current.state.program)throw new Error('已有训练阶段，请先导出并重置后再启用新的阶段');
+  const {buildAIProgram}=await import('./ai-plan.mjs?v=9db06024c85f');
+  const result=buildAIProgram({start:data.start,profile:data.profile,consent:true},data.raw,{model:data.model,engine:data.engine||'deepseek'});
+  next.state.profile=result.profile;next.state.program=result.program;
+ }
+ next.state.revision++;
+ next.history.push({revision:next.state.revision,operation:data.purpose==='cycle'?'cycle-plan-confirm':'ai-program-confirm',created_at:new Date().toISOString()});
+ validateBackup(next);
+ if(current.state.program?.schemaVersion!==2&&current.state.program&&!hasUpgradeBackup(storage))storage.setItem(UPGRADE_BACKUP_KEY,JSON.stringify(current));
+ if(readStore(storage).state.revision!==expectedRevision)throw new Error('资料或记录已改变，请重新生成方案');
  storage.setItem(STORAGE_KEY,JSON.stringify(next));return next;
 }

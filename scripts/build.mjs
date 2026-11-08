@@ -1,5 +1,6 @@
 import {mkdir,cp,writeFile,readFile,rm,readdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
+await import('./sync-library.mjs');
 const root=new URL('../',import.meta.url);
 async function files(dir){const list=[];for(const x of await readdir(new URL(dir,root),{withFileTypes:true})){const path=dir+x.name;if(x.isDirectory())list.push(...await files(path+'/'));else list.push(path);}return list.sort();}
 const inputs=[...await files('web/'),...await files('src/'),...await files('worker/')];
